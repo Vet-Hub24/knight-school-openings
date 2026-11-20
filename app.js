@@ -3,8 +3,9 @@ import { createPractice } from './practice.js';
 import { Chess } from './vendor/chess.js';
 import { families } from './content.js';
 import { advancedLines } from './advanced-lines.js';
+import { newVariations } from './new-variations.js';
 import { openingTheory } from './opening-theory.js';
-import { middlegameExamples } from './middlegame.js';
+import { middlegameExamples as existingMiddlegames } from './middlegame.js';
 import { scheduleReview } from './review.js';
 import { pieceVisual } from './pieces.js';
 
@@ -13,21 +14,29 @@ const blackCourses = new Set([2,3,4,5,6,7,8,13,14,15,16,17,22,23,24,25,26]);
 const baseCourses = families.map((entry, index) => ({
   ...entry, side: blackCourses.has(index) ? 'b' : 'w', moves: entry.line.split(' '),
 }));
-const advancedCourses = advancedLines.map(variation => {
+const advancedCourses = [...newVariations, ...advancedLines].map(variation => {
   const parent = baseCourses.find(course => course.id === variation.parent);
+  const setupLength = variation.setupPly ?? parent.moves.length;
   return {
     ...parent,
     ...variation,
-    setupLength: parent.moves.length,
-    moves: [...parent.moves, ...variation.line.map(([san]) => san)],
+    setupLength,
+    moves: [...parent.moves.slice(0,setupLength), ...variation.line.map(([san]) => san)],
     plan: `White: ${variation.white} Black: ${variation.black}`,
     theory: { ...variation, notes: [
-      ...openingTheory[parent.key].notes,
+      ...openingTheory[parent.key].notes.slice(0,setupLength),
       ...variation.line.map(([, note]) => note),
     ] },
   };
 });
 const courses = [...advancedCourses, ...baseCourses];
+const middlegameExamples = {...existingMiddlegames};
+for (const variation of newVariations) {
+  middlegameExamples[variation.id] = {lines:[{
+    moves: variation.bridge.map(([san]) => san).join(' '),
+    notes: variation.bridge.map(([, note]) => note),
+  }]};
+}
 const key = 'knight-opening-lab-progress-v1';
 let saved = {};
 try { saved = JSON.parse(localStorage.getItem(key)) || {}; } catch {}
